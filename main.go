@@ -1,5 +1,4 @@
-The MIT License (MIT)
-
+/*
 Copyright © 2024 koh-sh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,3 +18,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+*/
+package main
+
+import "github.com/koh-sh/actbills/cmd"
+
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+func main() {
+	cmd.SetVersionInfo(version, commit, date)
+	cmd.Execute()
+}
