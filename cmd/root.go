@@ -23,9 +23,16 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/koh-sh/actbills/internal/gha"
 	"github.com/spf13/cobra"
+)
+
+var (
+	repo string
+	out  string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -40,7 +47,12 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		err := gha.CreateReport(repo)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -62,6 +74,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().StringVar(&repo, "repo", "", "GitHub Repository name (default $GITHUB_REPOSITORY)")
 }
 
 // set version from goreleaser variables
