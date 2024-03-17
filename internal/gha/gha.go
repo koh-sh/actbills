@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/google/go-github/v60/github"
@@ -19,38 +20,27 @@ type EnvBillableTime struct {
 // WorkflowBillableTime represents a map of workflow names to their corresponding EnvBillableTime
 type WorkflowBillableTime map[string]EnvBillableTime
 
-// retrieve billable time for workflows and dump as markdown
+// CreateReport retrieves billable time for workflows and dumps as markdown
 func CreateReport(repository string) error {
 	owner, repo, err := getOwnerAndRepo(repository)
 	if err != nil {
 		return err
 	}
-	// out := getOutputPath()
-	client := rtnClient()
+
+	client := newGitHubClient()
 	workflows, err := getWorkflows(client, owner, repo)
 	if err != nil {
 		return err
 	}
-	wbt := WorkflowBillableTime{}
-	for _, v := range workflows {
-		m, err := getWorkflowBillableTime(client, owner, repo, *v.ID)
-		if err != nil {
-			return err
-		}
-		wbt[*v.Name] = EnvBillableTime{
-			Ubuntu:  getTotalMinutesForEnv(m, "UBUNTU"),
-			Windows: getTotalMinutesForEnv(m, "WINDOWS"),
-			Macos:   getTotalMinutesForEnv(m, "MACOS"),
-		}
-	}
-	for k, v := range wbt {
-		fmt.Printf("%s, %d, %d, %d\n", k, v.Ubuntu, v.Windows, v.Macos)
-	}
+
+	wbt := generateWorkflowBillableTime(client, owner, repo, workflows)
+	printWorkflowBillableTime(wbt)
+
 	return nil
 }
 
-// return client of github api
-func rtnClient() *github.Client {
+// newGitHubClient returns a new GitHub API client with optional authentication token
+func newGitHubClient() *github.Client {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		return github.NewClient(nil)
@@ -58,13 +48,11 @@ func rtnClient() *github.Client {
 	return github.NewClient(nil).WithAuthToken(token)
 }
 
-// get list of workflows for repository
+// getWorkflows retrieves a list of workflows for the specified repository
 func getWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow, error) {
-	opts := &github.ListOptions{
-		PerPage: 100,
-	}
-
 	var allWorkflows []*github.Workflow
+	opts := &github.ListOptions{PerPage: 100}
+
 	for {
 		workflows, resp, err := client.Actions.ListWorkflows(context.Background(), owner, repo, opts)
 		if err != nil {
@@ -82,7 +70,27 @@ func getWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow
 	return allWorkflows, nil
 }
 
-// get billable timemap for a workflow
+// generateWorkflowBillableTime generates a WorkflowBillableTime map for the specified workflows
+func generateWorkflowBillableTime(client *github.Client, owner, repo string, workflows []*github.Workflow) WorkflowBillableTime {
+	wbt := make(WorkflowBillableTime)
+
+	for _, workflow := range workflows {
+		billMap, err := getWorkflowBillableTime(client, owner, repo, *workflow.ID)
+		if err != nil {
+			continue
+		}
+
+		wbt[*workflow.Name] = EnvBillableTime{
+			Ubuntu:  getMinutesForEnv(billMap, "UBUNTU"),
+			Windows: getMinutesForEnv(billMap, "WINDOWS"),
+			Macos:   getMinutesForEnv(billMap, "MACOS"),
+		}
+	}
+
+	return wbt
+}
+
+// getWorkflowBillableTime retrieves the billable time map for a specific workflow
 func getWorkflowBillableTime(client *github.Client, owner, repo string, workflowID int64) (github.WorkflowBillMap, error) {
 	usage, _, err := client.Actions.GetWorkflowUsageByID(context.Background(), owner, repo, workflowID)
 	if err != nil {
@@ -92,13 +100,7 @@ func getWorkflowBillableTime(client *github.Client, owner, repo string, workflow
 	return *usage.Billable, nil
 }
 
-// getOwnerAndRepo extracts the owner and repository name from the provided `repo` argument
-// or the GITHUB_REPOSITORY environment variable based on the following conditions:
-//   - If the `repo` argument is not an empty string, it splits the value by the slash (/) and
-//     returns the owner and repo values.
-//   - If the `repo` argument is an empty string and the environment variable GITHUB_REPOSITORY is set,
-//     it splits the value of GITHUB_REPOSITORY by the slash (/) and returns the owner and repo values.
-//   - If neither of the above conditions are met, it returns an error.
+// getOwnerAndRepo extracts the owner and repository name from the provided repository argument or environment variable
 func getOwnerAndRepo(repo string) (string, string, error) {
 	var ownerRepo string
 	if repo != "" {
@@ -119,14 +121,28 @@ func getOwnerAndRepo(repo string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-// GetTotalMinutesPerEnvironment takes a WorkflowBillMap and returns a map containing the total time in minutes
-// for each of the specified environments: UBUNTU, MACOS, and WINDOWS. If a key doesn't exist in the input map,
-// the corresponding value in the result map will be set to 0.
-func getTotalMinutesForEnv(billMap github.WorkflowBillMap, env string) int64 {
+// getMinutesForEnv retrieves the total billable time in minutes for a specific environment
+func getMinutesForEnv(billMap github.WorkflowBillMap, env string) int64 {
 	bill, ok := billMap[env]
 	if !ok {
 		return 0
 	}
 
 	return bill.GetTotalMS() / 60000 // convert milliseconds to minutes
+}
+
+// printWorkflowBillableTime prints the WorkflowBillableTime data in a sorted order
+func printWorkflowBillableTime(wbt WorkflowBillableTime) {
+	// Sort the workflow names
+	var workflowNames []string
+	for name := range wbt {
+		workflowNames = append(workflowNames, name)
+	}
+	sort.Strings(workflowNames)
+
+	// Print the data in the sorted order
+	for _, name := range workflowNames {
+		envTime := wbt[name]
+		fmt.Printf("%s, %d, %d, %d\n", name, envTime.Ubuntu, envTime.Windows, envTime.Macos)
+	}
 }
