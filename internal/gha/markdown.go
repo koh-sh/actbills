@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	title = "Billable time for each Workflows in this billable cycle"
+	title = "Billable time for workflows in this billable cycle"
 	note  = `Please note the following:
 
 - This list shows the execution time for each Workflow at the time this Action was executed.

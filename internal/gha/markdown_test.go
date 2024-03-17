@@ -18,7 +18,7 @@ func Test_generateMarkdownText(t *testing.T) {
 			Macos:   60,
 		},
 	}
-	want := `# Billable time for each Workflows in this billable cycle
+	want := `# Billable time for workflows in this billable cycle
 
 | Workflow | Ubuntu (min) | Windows (min) | Macos (min) |
 | --- | --- | --- | --- |
