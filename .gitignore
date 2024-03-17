@@ -20,3 +20,6 @@ actbills
 
 # Go workspace file
 go.work
+
+# coverage file
+cover.html
