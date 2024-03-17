@@ -29,3 +29,6 @@ lint:
 # for testing
 dockerbuild:
 	docker build . -t actbills:latest
+
+dockerrun:
+	docker run -it --rm -e GITHUB_TOKEN actbills:latest -v
