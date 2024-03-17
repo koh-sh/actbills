@@ -1,0 +1,5 @@
+name: "actbills"
+description: "Generates a markdown table of billable execution times for GitHub repository Workflows."
+runs:
+  using: "docker"
+  image: "Dockerfile"
