@@ -9,29 +9,42 @@ import (
 	"github.com/google/go-github/v60/github"
 )
 
+// EnvBillableTime represents the total billable time for each environment in a workflow
+type EnvBillableTime struct {
+	Ubuntu  int64 // Total billable time for the Ubuntu environment (in minutes)
+	Windows int64 // Total billable time for the Windows environment (in minutes)
+	Macos   int64 // Total billable time for the Mac environment (in minutes)
+}
+
+// WorkflowBillableTime represents a map of workflow names to their corresponding EnvBillableTime
+type WorkflowBillableTime map[string]EnvBillableTime
+
 // retrieve billable time for workflows and dump as markdown
 func CreateReport(repository string) error {
 	owner, repo, err := getOwnerAndRepo(repository)
 	if err != nil {
 		return err
 	}
-	out := getOutputPath()
+	// out := getOutputPath()
 	client := rtnClient()
 	workflows, err := getWorkflows(client, owner, repo)
 	if err != nil {
 		return err
 	}
+	wbt := WorkflowBillableTime{}
 	for _, v := range workflows {
-		// WIP
-		err = appendToFile(out, *v.Name)
+		m, err := getWorkflowBillableTime(client, owner, repo, *v.ID)
 		if err != nil {
 			return err
 		}
-		m, _ := getWorkflowBillableTime(client, owner, repo, *v.ID)
-		v, ok := m["UBUNTU"]
-		if ok {
-			fmt.Println(v.GetTotalMS())
+		wbt[*v.Name] = EnvBillableTime{
+			Ubuntu:  getTotalMinutesForEnv(m, "UBUNTU"),
+			Windows: getTotalMinutesForEnv(m, "WINDOWS"),
+			Macos:   getTotalMinutesForEnv(m, "MACOS"),
 		}
+	}
+	for k, v := range wbt {
+		fmt.Printf("%s, %d, %d, %d\n", k, v.Ubuntu, v.Windows, v.Macos)
 	}
 	return nil
 }
@@ -76,19 +89,7 @@ func getWorkflowBillableTime(client *github.Client, owner, repo string, workflow
 		return nil, err
 	}
 
-	billableTime := usage.Billable
-
-	return *billableTime, nil
-}
-
-// getOutputPath returns the value of the environment variable GITHUB_STEP_SUMMARY
-// if it is set, or "/dev/stdout" if the environment variable is not set.
-func getOutputPath() string {
-	outputPath := os.Getenv("GITHUB_STEP_SUMMARY")
-	if outputPath == "" {
-		outputPath = "/dev/stdout"
-	}
-	return outputPath
+	return *usage.Billable, nil
 }
 
 // getOwnerAndRepo extracts the owner and repository name from the provided `repo` argument
@@ -118,21 +119,14 @@ func getOwnerAndRepo(repo string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-// appendToFile appends the given string to the file specified by the file path.
-// If the file does not exist, it will be created.
-// If the file exists, the string will be appended to the end of the file.
-// The function returns an error if the file cannot be opened or written to.
-func appendToFile(filePath, content string) error {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(content)
-	if err != nil {
-		return fmt.Errorf("failed to write to file: %w", err)
+// GetTotalMinutesPerEnvironment takes a WorkflowBillMap and returns a map containing the total time in minutes
+// for each of the specified environments: UBUNTU, MACOS, and WINDOWS. If a key doesn't exist in the input map,
+// the corresponding value in the result map will be set to 0.
+func getTotalMinutesForEnv(billMap github.WorkflowBillMap, env string) int64 {
+	bill, ok := billMap[env]
+	if !ok {
+		return 0
 	}
 
-	return nil
+	return bill.GetTotalMS() / 60000 // convert milliseconds to minutes
 }
