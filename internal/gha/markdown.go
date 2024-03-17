@@ -3,23 +3,29 @@ package gha
 import (
 	"fmt"
 	"os"
+	"sort"
 )
 
-type TableRow struct {
-	Environment  string
-	TotalMinutes float64
-	Cost         float64
-}
+func generateMarkdownText(wbt WorkflowBillableTime) string {
+	title := "Billable time for each Workflows in this billable cycle"
+	note := "hoge"
 
-func GenerateMarkdownText(title string, tableRows []TableRow, note string) string {
 	markdown := fmt.Sprintf("# %s\n\n", title)
 
 	// Generate the table
-	markdown += "| Environment | Total Minutes | Cost |\n"
-	markdown += "| --- | --- | --- |\n"
+	markdown += "| Workflow | Ubuntu (min) | Windows (min) | Macos (min) |\n"
+	markdown += "| --- | --- | --- | --- |\n"
 
-	for _, row := range tableRows {
-		markdown += fmt.Sprintf("| %s | %.2f | $%.2f |\n", row.Environment, row.TotalMinutes, row.Cost)
+	// Sort the workflow names
+	var workflowNames []string
+	for name := range wbt {
+		workflowNames = append(workflowNames, name)
+	}
+	sort.Strings(workflowNames)
+	// Print the data in the sorted order
+	for _, name := range workflowNames {
+		val := wbt[name]
+		markdown += fmt.Sprintf("| %s | %d | %d | %d |\n", name, val.Ubuntu, val.Windows, val.Macos)
 	}
 
 	// Add the note

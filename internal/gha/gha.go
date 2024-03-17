@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/google/go-github/v60/github"
@@ -34,7 +33,10 @@ func CreateReport(repository string) error {
 	}
 
 	wbt := generateWorkflowBillableTime(client, owner, repo, workflows)
-	printWorkflowBillableTime(wbt)
+	err = appendToFile(getOutputPath(), generateMarkdownText(wbt))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -129,20 +131,4 @@ func getMinutesForEnv(billMap github.WorkflowBillMap, env string) int64 {
 	}
 
 	return bill.GetTotalMS() / 60000 // convert milliseconds to minutes
-}
-
-// printWorkflowBillableTime prints the WorkflowBillableTime data in a sorted order
-func printWorkflowBillableTime(wbt WorkflowBillableTime) {
-	// Sort the workflow names
-	var workflowNames []string
-	for name := range wbt {
-		workflowNames = append(workflowNames, name)
-	}
-	sort.Strings(workflowNames)
-
-	// Print the data in the sorted order
-	for _, name := range workflowNames {
-		envTime := wbt[name]
-		fmt.Printf("%s, %d, %d, %d\n", name, envTime.Ubuntu, envTime.Windows, envTime.Macos)
-	}
 }

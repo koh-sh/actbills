@@ -30,10 +30,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	repo string
-	out  string
-)
+var repo string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
