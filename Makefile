@@ -10,13 +10,13 @@ setup:
 	go install github.com/spf13/cobra-cli@latest
 
 test:
-	go test ./... -json | tparse -all
+	export -n GITHUB_TOKEN; go test ./... -json | tparse -all
 
 fmt:
 	gofumpt -l -w *.go
 
 cov:
-	go test -cover ./... -coverprofile=$(COVFILE)
+	export -n GITHUB_TOKEN; go test -cover ./... -coverprofile=$(COVFILE)
 	go tool cover -html=$(COVFILE) -o $(COVHTML)
 	rm $(COVFILE)
 

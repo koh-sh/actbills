@@ -32,7 +32,10 @@ func CreateReport(repository string) error {
 		return err
 	}
 
-	wbt := generateWorkflowBillableTime(client, owner, repo, workflows)
+	wbt, err := generateWorkflowBillableTime(client, owner, repo, workflows)
+	if err != nil {
+		return err
+	}
 	err = appendToFile(getOutputPath(), generateMarkdownText(wbt))
 	if err != nil {
 		return err
@@ -73,13 +76,13 @@ func getWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow
 }
 
 // generateWorkflowBillableTime generates a WorkflowBillableTime map for the specified workflows
-func generateWorkflowBillableTime(client *github.Client, owner, repo string, workflows []*github.Workflow) WorkflowBillableTime {
+func generateWorkflowBillableTime(client *github.Client, owner, repo string, workflows []*github.Workflow) (WorkflowBillableTime, error) {
 	wbt := make(WorkflowBillableTime)
 
 	for _, workflow := range workflows {
 		billMap, err := getWorkflowBillableTime(client, owner, repo, *workflow.ID)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
 		wbt[*workflow.Name] = EnvBillableTime{
@@ -89,7 +92,7 @@ func generateWorkflowBillableTime(client *github.Client, owner, repo string, wor
 		}
 	}
 
-	return wbt
+	return wbt, nil
 }
 
 // getWorkflowBillableTime retrieves the billable time map for a specific workflow
