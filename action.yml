@@ -1,5 +1,12 @@
 name: "actbills"
 description: "Generates a markdown table of billable execution times for GitHub repository Workflows."
+inputs:
+  github_token:
+    description: "GitHub token for authentication"
+    required: true
+    default: ${{ github.token }}
 runs:
   using: "docker"
   image: "Dockerfile"
+  env:
+    GITHUB_TOKEN: ${{ inputs.github_token }}
