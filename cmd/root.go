@@ -35,13 +35,12 @@ var repo string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "actbills",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "A CLI tool that generates a markdown table of billable execution times for GitHub repository Workflows.",
+	Long: `A CLI tool that generates a markdown table of billable execution times for GitHub repository Workflows.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+This CLI tool retrieves GitHub repository Workflows and their billable times.
+It aggregates the time spent by runner OS (Ubuntu, Windows, macOS).
+Results are output in a markdown table for easy review and management.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
