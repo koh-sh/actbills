@@ -22,6 +22,7 @@ const (
 func generateMarkdownText(wbt WorkflowBillableTime) string {
 	markdown := fmt.Sprintf("# %s\n\n", title)
 	markdown += generateMarkdownTable(wbt)
+	markdown += generateTotalRow(wbt)
 	markdown += fmt.Sprintf("\n%s\n", note)
 
 	return markdown
@@ -46,6 +47,32 @@ func generateMarkdownTable(wbt WorkflowBillableTime) string {
 	}
 
 	return table
+}
+
+// generateTotalRow generates the total row for the workflow billable time table.
+func generateTotalRow(workflowBillableTimes WorkflowBillableTime) string {
+	totalBillableTime := calculateTotalBillableTime(workflowBillableTimes)
+	titleCell := "**Total**"
+	ubuntuCell := formatBoldMinutes(totalBillableTime.Ubuntu)
+	windowsCell := formatBoldMinutes(totalBillableTime.Windows)
+	macosCell := formatBoldMinutes(totalBillableTime.Macos)
+	return fmt.Sprintf("| %s | %s | %s | %s |\n", titleCell, ubuntuCell, windowsCell, macosCell)
+}
+
+// calculateTotalBillableTime calculates the total billable time for each environment.
+func calculateTotalBillableTime(workflowBillableTimes WorkflowBillableTime) EnvBillableTime {
+	var totalBillableTime EnvBillableTime
+	for _, billableTime := range workflowBillableTimes {
+		totalBillableTime.Ubuntu += billableTime.Ubuntu
+		totalBillableTime.Windows += billableTime.Windows
+		totalBillableTime.Macos += billableTime.Macos
+	}
+	return totalBillableTime
+}
+
+// formatBoldMinutes formats the given minutes as bold text.
+func formatBoldMinutes(minutes int64) string {
+	return fmt.Sprintf("**%d**", minutes)
 }
 
 // getOutputPath returns the value of the environment variable GITHUB_STEP_SUMMARY.
