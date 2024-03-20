@@ -24,6 +24,7 @@ func Test_generateMarkdownText(t *testing.T) {
 | --- | --- | --- | --- |
 | Workflow1 | 120 | 90 | 60 |
 | Workflow2 | 180 | 30 | 0 |
+| **Total** | **300** | **120** | **60** |
 
 Please note the following:
 
