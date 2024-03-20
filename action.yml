@@ -1,5 +1,8 @@
 name: "actbills"
 description: "Generates a markdown table of billable execution times for GitHub repository Workflows."
+branding:
+  icon: "dollar-sign"
+  color: "green"
 inputs:
   github_token:
     description: "GitHub token for authentication"
