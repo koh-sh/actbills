@@ -26,7 +26,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/koh-sh/actbills/internal/gha"
+	"github.com/koh-sh/actbills/internal/bills"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ Results are output in a markdown table for easy review and management.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		err := gha.CreateReport(repo)
+		err := bills.CreateReport(repo)
 		if err != nil {
 			log.Fatal(err)
 		}

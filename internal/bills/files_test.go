@@ -1,59 +1,10 @@
-package gha
+package bills
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 )
-
-func Test_generateMarkdownText(t *testing.T) {
-	workflowBillableTime := WorkflowBillableTime{
-		"Workflow2": EnvBillableTime{
-			Ubuntu:  180,
-			Windows: 30,
-		},
-		"Workflow1": EnvBillableTime{
-			Ubuntu:  120,
-			Windows: 90,
-			Macos:   60,
-		},
-	}
-	want := `# Billable time for workflows in this billable cycle
-
-| Workflow | Ubuntu (min) | Windows (min) | Macos (min) |
-| --- | --- | --- | --- |
-| Workflow1 | 120 | 90 | 60 |
-| Workflow2 | 180 | 30 | 0 |
-| **Total** | **300** | **120** | **60** |
-
-Please note the following:
-
-- This list shows the execution time for each Workflow at the time this Action was executed.
-- Workflows that have been deleted at the time of execution will not be listed.
-- Execution times using Larger runners are not included in the aggregation.
-`
-	type args struct {
-		wbt WorkflowBillableTime
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "basic",
-			args: args{wbt: workflowBillableTime},
-			want: want,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := generateMarkdownText(tt.args.wbt); got != tt.want {
-				t.Errorf("generateMarkdownText() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func Test_getOutputPath(t *testing.T) {
 	tests := []struct {

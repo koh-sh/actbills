@@ -1,4 +1,4 @@
-package gha
+package bills
 
 import (
 	"reflect"
@@ -8,7 +8,26 @@ import (
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 )
 
-func Test_getOwnerAndRepo(t *testing.T) {
+func Test_createGitHubClient(t *testing.T) {
+	tests := []struct {
+		name string
+		want *github.Client
+	}{
+		{
+			name: "basic",
+			want: github.NewClient(nil),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := createGitHubClient(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newGitHubClient() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_extractOwnerAndRepo(t *testing.T) {
 	type args struct {
 		repo string
 	}
@@ -53,7 +72,7 @@ func Test_getOwnerAndRepo(t *testing.T) {
 			if tt.name == "with env" {
 				t.Setenv("GITHUB_REPOSITORY", "owner/repo")
 			}
-			got, got1, err := getOwnerAndRepo(tt.args.repo)
+			got, got1, err := extractOwnerAndRepo(tt.args.repo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getOwnerAndRepo() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -63,25 +82,6 @@ func Test_getOwnerAndRepo(t *testing.T) {
 			}
 			if got1 != tt.want1 {
 				t.Errorf("getOwnerAndRepo() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
-func Test_newGitHubClient(t *testing.T) {
-	tests := []struct {
-		name string
-		want *github.Client
-	}{
-		{
-			name: "basic",
-			want: github.NewClient(nil),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := newGitHubClient(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newGitHubClient() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -127,7 +127,7 @@ func Test_getMinutesForEnv(t *testing.T) {
 	}
 }
 
-func Test_getWorkflows(t *testing.T) {
+func Test_fetchWorkflows(t *testing.T) {
 	type args struct {
 		client *github.Client
 		owner  string
@@ -204,79 +204,13 @@ func Test_getWorkflows(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getWorkflows(tt.args.client, tt.args.owner, tt.args.repo)
+			got, err := fetchWorkflows(tt.args.client, tt.args.owner, tt.args.repo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getWorkflows() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getWorkflows() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_generateWorkflowBillableTime(t *testing.T) {
-	type args struct {
-		client    *github.Client
-		owner     string
-		repo      string
-		workflows []*github.Workflow
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    WorkflowBillableTime
-		wantErr bool
-	}{
-		{
-			name: "basic",
-			args: args{
-				client: mockClientForWorkflowUsage("basic"),
-				owner:  "owner",
-				repo:   "repo",
-				workflows: []*github.Workflow{
-					{
-						Name: github.String("workflow1"),
-						ID:   github.Int64(123),
-					},
-				},
-			},
-			want: WorkflowBillableTime{
-				"workflow1": EnvBillableTime{
-					Ubuntu:  1,
-					Windows: 10,
-					Macos:   0,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ratelimit",
-			args: args{
-				client: mockClientForWorkflowUsage("ratelimit"),
-				owner:  "owner",
-				repo:   "repo",
-				workflows: []*github.Workflow{
-					{
-						Name: github.String("workflow1"),
-						ID:   github.Int64(123),
-					},
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateWorkflowBillableTime(tt.args.client, tt.args.owner, tt.args.repo, tt.args.workflows)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateWorkflowBillableTime() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("generateWorkflowBillableTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
