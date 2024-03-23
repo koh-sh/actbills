@@ -1,4 +1,4 @@
-package gha
+package bills
 
 import (
 	"fmt"
