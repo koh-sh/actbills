@@ -3,77 +3,7 @@ package gha
 import (
 	"fmt"
 	"os"
-	"sort"
 )
-
-const (
-	title = "Billable time for workflows in this billable cycle"
-	note  = `Please note the following:
-
-- This list shows the execution time for each Workflow at the time this Action was executed.
-- Workflows that have been deleted at the time of execution will not be listed.
-- Execution times using Larger runners are not included in the aggregation.`
-	tableHeader    = "| Workflow | Ubuntu (min) | Windows (min) | Macos (min) |\n"
-	tableSeparator = "| --- | --- | --- | --- |\n"
-)
-
-// generateMarkdownText generates a markdown-formatted text based on the provided WorkflowBillableTime data.
-// It includes a title, a table of billable times for each workflow, and a note.
-func generateMarkdownText(wbt WorkflowBillableTime) string {
-	markdown := fmt.Sprintf("# %s\n\n", title)
-	markdown += generateMarkdownTable(wbt)
-	markdown += generateTotalRow(wbt)
-	markdown += fmt.Sprintf("\n%s\n", note)
-
-	return markdown
-}
-
-// generateMarkdownTable generates a markdown-formatted table of billable times for each workflow.
-// The table includes the workflow name and the billable times for Ubuntu, Windows, and macOS.
-func generateMarkdownTable(wbt WorkflowBillableTime) string {
-	var table string
-	table += tableHeader
-	table += tableSeparator
-
-	var workflowNames []string
-	for name := range wbt {
-		workflowNames = append(workflowNames, name)
-	}
-	sort.Strings(workflowNames)
-
-	for _, name := range workflowNames {
-		val := wbt[name]
-		table += fmt.Sprintf("| %s | %d | %d | %d |\n", name, val.Ubuntu, val.Windows, val.Macos)
-	}
-
-	return table
-}
-
-// generateTotalRow generates the total row for the workflow billable time table.
-func generateTotalRow(workflowBillableTimes WorkflowBillableTime) string {
-	totalBillableTime := calculateTotalBillableTime(workflowBillableTimes)
-	titleCell := "**Total**"
-	ubuntuCell := formatBoldMinutes(totalBillableTime.Ubuntu)
-	windowsCell := formatBoldMinutes(totalBillableTime.Windows)
-	macosCell := formatBoldMinutes(totalBillableTime.Macos)
-	return fmt.Sprintf("| %s | %s | %s | %s |\n", titleCell, ubuntuCell, windowsCell, macosCell)
-}
-
-// calculateTotalBillableTime calculates the total billable time for each environment.
-func calculateTotalBillableTime(workflowBillableTimes WorkflowBillableTime) EnvBillableTime {
-	var totalBillableTime EnvBillableTime
-	for _, billableTime := range workflowBillableTimes {
-		totalBillableTime.Ubuntu += billableTime.Ubuntu
-		totalBillableTime.Windows += billableTime.Windows
-		totalBillableTime.Macos += billableTime.Macos
-	}
-	return totalBillableTime
-}
-
-// formatBoldMinutes formats the given minutes as bold text.
-func formatBoldMinutes(minutes int64) string {
-	return fmt.Sprintf("**%d**", minutes)
-}
 
 // getOutputPath returns the value of the environment variable GITHUB_STEP_SUMMARY.
 // If the environment variable is not set, it returns "/dev/stdout".

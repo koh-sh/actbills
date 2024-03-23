@@ -4,10 +4,25 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/google/go-github/v60/github"
 )
+
+const (
+	title = "Billable time for workflows in this billable cycle"
+	note  = `Please note the following:
+
+- This list shows the execution time for each Workflow at the time this Action was executed.
+- Workflows that have been deleted at the time of execution will not be listed.
+- Execution times using Larger runners are not included in the aggregation.`
+	tableHeader    = "| Workflow | Ubuntu (min) | Windows (min) | Macos (min) |\n"
+	tableSeparator = "| --- | --- | --- | --- |\n"
+)
+
+// WorkflowBillableTime represents a map of workflow names to their corresponding EnvBillableTime
+type WorkflowBillableTime map[string]EnvBillableTime
 
 // EnvBillableTime represents the total billable time for each environment in a workflow
 type EnvBillableTime struct {
@@ -16,8 +31,64 @@ type EnvBillableTime struct {
 	Macos   int64 // Total billable time for the Mac environment (in minutes)
 }
 
-// WorkflowBillableTime represents a map of workflow names to their corresponding EnvBillableTime
-type WorkflowBillableTime map[string]EnvBillableTime
+// generateMarkdownText generates a markdown-formatted text based on the provided WorkflowBillableTime data.
+// It includes a title, a table of billable times for each workflow, and a note.
+func (w WorkflowBillableTime) generateMarkdownText() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# %s\n\n", title))
+	sb.WriteString(w.generateMarkdownTable())
+	sb.WriteString(w.total().markdownBoldRow("Total"))
+	sb.WriteString(fmt.Sprintf("\n%s\n", note))
+
+	return sb.String()
+}
+
+// return WorkflowBillableTime total as EnvBillableTime
+func (w WorkflowBillableTime) total() EnvBillableTime {
+	var totalBillableTime EnvBillableTime
+	for _, billableTime := range w {
+		totalBillableTime.Ubuntu += billableTime.Ubuntu
+		totalBillableTime.Windows += billableTime.Windows
+		totalBillableTime.Macos += billableTime.Macos
+	}
+	return totalBillableTime
+}
+
+// generateMarkdownTable generates a markdown-formatted table of billable times for each workflow.
+// The table includes the workflow name and the billable times for Ubuntu, Windows, and macOS.
+func (wbt WorkflowBillableTime) generateMarkdownTable() string {
+	var sb strings.Builder
+	sb.WriteString(tableHeader)
+	sb.WriteString(tableSeparator)
+
+	workflowNames := wbt.sortWorkflowNames()
+
+	for _, name := range workflowNames {
+		sb.WriteString(wbt[name].markdownRow(name))
+	}
+
+	return sb.String()
+}
+
+// sortWorkflowNames returns a sorted slice of workflow names.
+func (wbt WorkflowBillableTime) sortWorkflowNames() []string {
+	var workflowNames []string
+	for name := range wbt {
+		workflowNames = append(workflowNames, name)
+	}
+	sort.Strings(workflowNames)
+	return workflowNames
+}
+
+// return string to generate markdown row for each environment
+func (e EnvBillableTime) markdownRow(title string) string {
+	return fmt.Sprintf("| %s | %d | %d | %d |\n", title, e.Ubuntu, e.Windows, e.Macos)
+}
+
+// return bold string to generate markdown row for each environment
+func (e EnvBillableTime) markdownBoldRow(title string) string {
+	return fmt.Sprintf("| **%s** | **%d** | **%d** | **%d** |\n", title, e.Ubuntu, e.Windows, e.Macos)
+}
 
 // CreateReport retrieves billable time for workflows and dumps as markdown
 func CreateReport(repository string) error {
@@ -36,7 +107,7 @@ func CreateReport(repository string) error {
 	if err != nil {
 		return err
 	}
-	err = appendToFile(getOutputPath(), generateMarkdownText(wbt))
+	err = appendToFile(getOutputPath(), wbt.generateMarkdownText())
 	if err != nil {
 		return err
 	}
