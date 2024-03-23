@@ -21,31 +21,31 @@ const (
 	tableSeparator = "| --- | --- | --- | --- |\n"
 )
 
-// WorkflowBillableTime represents a map of workflow names to their corresponding EnvBillableTime
-type WorkflowBillableTime map[string]EnvBillableTime
+// WorkflowBillableTimes represents a map of workflow names to their corresponding WorkflowBillableTime
+type WorkflowBillableTimes map[string]WorkflowBillableTime
 
-// EnvBillableTime represents the total billable time for each environment in a workflow
-type EnvBillableTime struct {
+// WorkflowBillableTime represents the total billable time for each environment in a workflow
+type WorkflowBillableTime struct {
 	Ubuntu  int64 // Total billable time for the Ubuntu environment (in minutes)
 	Windows int64 // Total billable time for the Windows environment (in minutes)
 	Macos   int64 // Total billable time for the Mac environment (in minutes)
 }
 
-// generateMarkdownText generates a markdown-formatted text based on the provided WorkflowBillableTime data.
+// GenerateMarkdownReport generates a markdown-formatted report based on the provided WorkflowBillableTimes data.
 // It includes a title, a table of billable times for each workflow, and a note.
-func (w WorkflowBillableTime) generateMarkdownText() string {
+func (w WorkflowBillableTimes) generateMarkdownReport() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# %s\n\n", title))
 	sb.WriteString(w.generateMarkdownTable())
-	sb.WriteString(w.total().markdownBoldRow("Total"))
+	sb.WriteString(w.calculateTotal().formatBoldMarkdownRow("Total"))
 	sb.WriteString(fmt.Sprintf("\n%s\n", note))
 
 	return sb.String()
 }
 
-// return WorkflowBillableTime total as EnvBillableTime
-func (w WorkflowBillableTime) total() EnvBillableTime {
-	var totalBillableTime EnvBillableTime
+// calculateTotal calculates the total billable time for each environment across all workflows
+func (w WorkflowBillableTimes) calculateTotal() WorkflowBillableTime {
+	var totalBillableTime WorkflowBillableTime
 	for _, billableTime := range w {
 		totalBillableTime.Ubuntu += billableTime.Ubuntu
 		totalBillableTime.Windows += billableTime.Windows
@@ -56,58 +56,58 @@ func (w WorkflowBillableTime) total() EnvBillableTime {
 
 // generateMarkdownTable generates a markdown-formatted table of billable times for each workflow.
 // The table includes the workflow name and the billable times for Ubuntu, Windows, and macOS.
-func (wbt WorkflowBillableTime) generateMarkdownTable() string {
+func (w WorkflowBillableTimes) generateMarkdownTable() string {
 	var sb strings.Builder
 	sb.WriteString(tableHeader)
 	sb.WriteString(tableSeparator)
 
-	workflowNames := wbt.sortWorkflowNames()
+	workflowNames := w.sortWorkflowNames()
 
 	for _, name := range workflowNames {
-		sb.WriteString(wbt[name].markdownRow(name))
+		sb.WriteString(w[name].formatMarkdownRow(name))
 	}
 
 	return sb.String()
 }
 
 // sortWorkflowNames returns a sorted slice of workflow names.
-func (wbt WorkflowBillableTime) sortWorkflowNames() []string {
+func (w WorkflowBillableTimes) sortWorkflowNames() []string {
 	var workflowNames []string
-	for name := range wbt {
+	for name := range w {
 		workflowNames = append(workflowNames, name)
 	}
 	sort.Strings(workflowNames)
 	return workflowNames
 }
 
-// return string to generate markdown row for each environment
-func (e EnvBillableTime) markdownRow(title string) string {
+// formatMarkdownRow formats the billable time for each environment as a markdown table row
+func (e WorkflowBillableTime) formatMarkdownRow(title string) string {
 	return fmt.Sprintf("| %s | %d | %d | %d |\n", title, e.Ubuntu, e.Windows, e.Macos)
 }
 
-// return bold string to generate markdown row for each environment
-func (e EnvBillableTime) markdownBoldRow(title string) string {
+// formatBoldMarkdownRow formats the billable time for each environment as a bold markdown table row
+func (e WorkflowBillableTime) formatBoldMarkdownRow(title string) string {
 	return fmt.Sprintf("| **%s** | **%d** | **%d** | **%d** |\n", title, e.Ubuntu, e.Windows, e.Macos)
 }
 
-// CreateReport retrieves billable time for workflows and dumps as markdown
+// CreateReport retrieves billable time for workflows and generates a markdown report
 func CreateReport(repository string) error {
-	owner, repo, err := getOwnerAndRepo(repository)
+	owner, repo, err := extractOwnerAndRepo(repository)
 	if err != nil {
 		return err
 	}
 
-	client := newGitHubClient()
-	workflows, err := getWorkflows(client, owner, repo)
+	client := createGitHubClient()
+	workflows, err := fetchWorkflows(client, owner, repo)
 	if err != nil {
 		return err
 	}
 
-	wbt, err := generateWorkflowBillableTime(client, owner, repo, workflows)
+	wbt, err := generateWorkflowBillableTimes(client, owner, repo, workflows)
 	if err != nil {
 		return err
 	}
-	err = appendToFile(getOutputPath(), wbt.generateMarkdownText())
+	err = appendToFile(getOutputPath(), wbt.generateMarkdownReport())
 	if err != nil {
 		return err
 	}
@@ -115,8 +115,8 @@ func CreateReport(repository string) error {
 	return nil
 }
 
-// newGitHubClient returns a new GitHub API client with optional authentication token
-func newGitHubClient() *github.Client {
+// createGitHubClient creates a new GitHub API client with optional authentication token
+func createGitHubClient() *github.Client {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		return github.NewClient(nil)
@@ -124,8 +124,8 @@ func newGitHubClient() *github.Client {
 	return github.NewClient(nil).WithAuthToken(token)
 }
 
-// getWorkflows retrieves a list of workflows for the specified repository
-func getWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow, error) {
+// fetchWorkflows retrieves a list of workflows for the specified repository
+func fetchWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow, error) {
 	var allWorkflows []*github.Workflow
 	opts := &github.ListOptions{PerPage: 100}
 
@@ -146,17 +146,17 @@ func getWorkflows(client *github.Client, owner, repo string) ([]*github.Workflow
 	return allWorkflows, nil
 }
 
-// generateWorkflowBillableTime generates a WorkflowBillableTime map for the specified workflows
-func generateWorkflowBillableTime(client *github.Client, owner, repo string, workflows []*github.Workflow) (WorkflowBillableTime, error) {
-	wbt := make(WorkflowBillableTime)
+// generateWorkflowBillableTime generates a WorkflowBillableTimes for the specified workflows
+func generateWorkflowBillableTimes(client *github.Client, owner, repo string, workflows []*github.Workflow) (WorkflowBillableTimes, error) {
+	wbt := make(WorkflowBillableTimes)
 
 	for _, workflow := range workflows {
-		billMap, err := getWorkflowBillableTime(client, owner, repo, *workflow.ID)
+		billMap, err := fetchWorkflowBillMap(client, owner, repo, *workflow.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		wbt[*workflow.Name] = EnvBillableTime{
+		wbt[*workflow.Name] = WorkflowBillableTime{
 			Ubuntu:  getMinutesForEnv(billMap, "UBUNTU"),
 			Windows: getMinutesForEnv(billMap, "WINDOWS"),
 			Macos:   getMinutesForEnv(billMap, "MACOS"),
@@ -166,8 +166,8 @@ func generateWorkflowBillableTime(client *github.Client, owner, repo string, wor
 	return wbt, nil
 }
 
-// getWorkflowBillableTime retrieves the billable time map for a specific workflow
-func getWorkflowBillableTime(client *github.Client, owner, repo string, workflowID int64) (github.WorkflowBillMap, error) {
+// fetchWorkflowBillableTime retrieves the billable time map for a specific workflow
+func fetchWorkflowBillMap(client *github.Client, owner, repo string, workflowID int64) (github.WorkflowBillMap, error) {
 	usage, _, err := client.Actions.GetWorkflowUsageByID(context.Background(), owner, repo, workflowID)
 	if err != nil {
 		return nil, err
@@ -176,8 +176,8 @@ func getWorkflowBillableTime(client *github.Client, owner, repo string, workflow
 	return *usage.Billable, nil
 }
 
-// getOwnerAndRepo extracts the owner and repository name from the provided repository argument or environment variable
-func getOwnerAndRepo(repo string) (string, string, error) {
+// extractOwnerAndRepo extracts the owner and repository name from the provided repository argument or environment variable
+func extractOwnerAndRepo(repo string) (string, string, error) {
 	var ownerRepo string
 	if repo != "" {
 		ownerRepo = repo

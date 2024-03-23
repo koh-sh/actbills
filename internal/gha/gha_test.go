@@ -8,7 +8,7 @@ import (
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 )
 
-func Test_getOwnerAndRepo(t *testing.T) {
+func Test_formatBoldMarkdownRow(t *testing.T) {
 	type args struct {
 		repo string
 	}
@@ -53,7 +53,7 @@ func Test_getOwnerAndRepo(t *testing.T) {
 			if tt.name == "with env" {
 				t.Setenv("GITHUB_REPOSITORY", "owner/repo")
 			}
-			got, got1, err := getOwnerAndRepo(tt.args.repo)
+			got, got1, err := extractOwnerAndRepo(tt.args.repo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getOwnerAndRepo() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -68,7 +68,7 @@ func Test_getOwnerAndRepo(t *testing.T) {
 	}
 }
 
-func Test_newGitHubClient(t *testing.T) {
+func Test_createGitHubClient(t *testing.T) {
 	tests := []struct {
 		name string
 		want *github.Client
@@ -80,7 +80,7 @@ func Test_newGitHubClient(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newGitHubClient(); !reflect.DeepEqual(got, tt.want) {
+			if got := createGitHubClient(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newGitHubClient() = %v, want %v", got, tt.want)
 			}
 		})
@@ -127,7 +127,7 @@ func Test_getMinutesForEnv(t *testing.T) {
 	}
 }
 
-func Test_getWorkflows(t *testing.T) {
+func Test_fetchWorkflows(t *testing.T) {
 	type args struct {
 		client *github.Client
 		owner  string
@@ -204,7 +204,7 @@ func Test_getWorkflows(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getWorkflows(tt.args.client, tt.args.owner, tt.args.repo)
+			got, err := fetchWorkflows(tt.args.client, tt.args.owner, tt.args.repo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getWorkflows() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -216,7 +216,7 @@ func Test_getWorkflows(t *testing.T) {
 	}
 }
 
-func Test_generateWorkflowBillableTime(t *testing.T) {
+func Test_generateWorkflowBillableTimes(t *testing.T) {
 	type args struct {
 		client    *github.Client
 		owner     string
@@ -226,7 +226,7 @@ func Test_generateWorkflowBillableTime(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    WorkflowBillableTime
+		want    WorkflowBillableTimes
 		wantErr bool
 	}{
 		{
@@ -242,8 +242,8 @@ func Test_generateWorkflowBillableTime(t *testing.T) {
 					},
 				},
 			},
-			want: WorkflowBillableTime{
-				"workflow1": EnvBillableTime{
+			want: WorkflowBillableTimes{
+				"workflow1": WorkflowBillableTime{
 					Ubuntu:  1,
 					Windows: 10,
 					Macos:   0,
@@ -270,7 +270,7 @@ func Test_generateWorkflowBillableTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateWorkflowBillableTime(tt.args.client, tt.args.owner, tt.args.repo, tt.args.workflows)
+			got, err := generateWorkflowBillableTimes(tt.args.client, tt.args.owner, tt.args.repo, tt.args.workflows)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("generateWorkflowBillableTime() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -387,13 +387,13 @@ func mockClientForWorkflowUsage(ptn string) *github.Client {
 	}
 }
 
-func TestWorkflowBillableTime_generateMarkdownText(t *testing.T) {
-	workflowBillableTime := WorkflowBillableTime{
-		"Workflow2": EnvBillableTime{
+func TestWorkflowBillableTimes_generateMarkdownReport(t *testing.T) {
+	workflowBillableTimes := WorkflowBillableTimes{
+		"Workflow2": WorkflowBillableTime{
 			Ubuntu:  180,
 			Windows: 30,
 		},
-		"Workflow1": EnvBillableTime{
+		"Workflow1": WorkflowBillableTime{
 			Ubuntu:  120,
 			Windows: 90,
 			Macos:   60,
@@ -415,18 +415,18 @@ Please note the following:
 `
 	tests := []struct {
 		name string
-		w    WorkflowBillableTime
+		w    WorkflowBillableTimes
 		want string
 	}{
 		{
 			name: "basic",
-			w:    workflowBillableTime,
+			w:    workflowBillableTimes,
 			want: want,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.w.generateMarkdownText(); got != tt.want {
+			if got := tt.w.generateMarkdownReport(); got != tt.want {
 				t.Errorf("WorkflowBillableTime.generateMarkdownText() = %v, want %v", got, tt.want)
 			}
 		})
