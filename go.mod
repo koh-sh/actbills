@@ -5,7 +5,7 @@ go 1.21.5
 require (
 	github.com/google/go-github/v60 v60.0.0
 	github.com/migueleliasweb/go-github-mock v0.0.23
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 )
 
 require (
